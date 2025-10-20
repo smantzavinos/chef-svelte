@@ -16,160 +16,215 @@ export function solutionConstraints(options: SystemPromptOptions) {
       ${convexGuidelines(options)}
 
       <http_guidelines>
-        - All user-defined HTTP endpoints are defined in \`convex/router.ts\` and require an \`httpAction\` decorator.
-        - The \`convex/http.ts\` file contains the authentication handler for Convex Auth. Do NOT modify this file because it is locked. Instead define all new http actions in \`convex/router.ts\`.
+        - All user-defined HTTP endpoints should be defined in \`convex/http.ts\` using \`httpRouter\` and \`httpAction\`.
+        - Example: Create an HTTP endpoint by defining an httpAction in convex/http.ts
       </http_guidelines>
 
       <auth_server_guidelines>
-        Here are some guidelines for using the template's auth within the app:
+        Here are some guidelines for using Clerk authentication with Convex:
 
-        When writing Convex handlers, use the 'getAuthUserId' function to get the logged in user's ID. You
-        can then pass this to 'ctx.db.get' in queries or mutations to get the user's data. But, you can only
-        do this within the \`convex/\` directory. For example:
+        When writing Convex handlers, use \`ctx.auth.getUserIdentity()\` to get the logged in user's identity from Clerk.
+        The identity object contains user information from Clerk's JWT token. For example:
         \`\`\`ts "convex/users.ts"
-        import { getAuthUserId } from "@convex-dev/auth/server";
+        import { query } from "./_generated/server";
 
         export const currentLoggedInUser = query({
           handler: async (ctx) => {
-            const userId = await getAuthUserId(ctx);
-            if (!userId) {
+            const identity = await ctx.auth.getUserIdentity();
+            if (!identity) {
               return null;
             }
-            const user = await ctx.db.get(userId);
-            if (!user) {
-              return null;
-            }
-            console.log("User", user.name, user.image, user.email);
-            return user;
+            // identity.subject is the Clerk user ID
+            // identity.email is the user's email
+            // identity.name is the user's name
+            console.log("User", identity.name, identity.email, identity.subject);
+            return {
+              id: identity.subject,
+              name: identity.name,
+              email: identity.email,
+            };
           }
         })
         \`\`\`
 
-        If you want to get the current logged in user's data on the frontend, you should use the following function
-        that is defined in \`convex/auth.ts\`:
-
-        \`\`\`ts "convex/auth.ts"
-        export const loggedInUser = query({
-          handler: async (ctx) => {
-            const userId = await getAuthUserId(ctx);
-            if (!userId) {
-              return null;
-            }
-            const user = await ctx.db.get(userId);
-            if (!user) {
-              return null;
-            }
-            return user;
-          },
-        });
-        \`\`\`
-
-        Then, you can use the \`loggedInUser\` query in your React component like this:
-
-        \`\`\`tsx "src/App.tsx"
-        const user = useQuery(api.auth.loggedInUser);
-        \`\`\`
-
-        The "users" table within 'authTables' has a schema that looks like:
+        The \`identity\` object from Clerk contains:
         \`\`\`ts
-        const users = defineTable({
-          name: v.optional(v.string()),
-          image: v.optional(v.string()),
-          email: v.optional(v.string()),
-          emailVerificationTime: v.optional(v.number()),
-          phone: v.optional(v.string()),
-          phoneVerificationTime: v.optional(v.number()),
-          isAnonymous: v.optional(v.boolean()),
-        })
-          .index("email", ["email"])
-          .index("phone", ["phone"]);
+        {
+          subject: string;        // Clerk user ID (e.g., "user_2abc...")
+          email?: string;         // User's email
+          emailVerified?: string; // Email verification status
+          name?: string;          // User's full name
+          givenName?: string;     // First name
+          familyName?: string;    // Last name
+          nickname?: string;      // Username/nickname
+          pictureUrl?: string;    // Profile picture URL
+          tokenIdentifier: string; // Unique token ID
+          issuer: string;         // JWT issuer URL
+        }
+        \`\`\`
+
+        When storing user data in your database, use \`identity.subject\` as the user ID:
+        \`\`\`ts
+        await ctx.db.insert('posts', {
+          title,
+          content,
+          authorId: identity.subject, // Clerk user ID
+          createdAt: Date.now(),
+        });
         \`\`\`
       </auth_server_guidelines>
 
       <client_guidelines>
-        Here is an example of using Convex from a React app:
-        \`\`\`tsx
-        import React, { useState } from "react";
-        import { useMutation, useQuery } from "convex/react";
-        import { api } from "../convex/_generated/api";
+        Here is an example of using Convex from a Svelte 5 app:
+        \`\`\`svelte
+        <script lang="ts">
+          import { useQuery, useMutation } from "convex-svelte";
+          import { api } from "$convex/_generated/api";
 
-        export default function App() {
-          const messages = useQuery(api.messages.list) || [];
-
-          const [newMessageText, setNewMessageText] = useState("");
+          const messagesQuery = useQuery(api.messages.list, {});
           const sendMessage = useMutation(api.messages.send);
 
-          const [name] = useState(() => "User " + Math.floor(Math.random() * 10000));
-          async function handleSendMessage(event) {
+          let newMessageText = $state("");
+          let name = $state("User " + Math.floor(Math.random() * 10000));
+
+          async function handleSendMessage(event: SubmitEvent) {
             event.preventDefault();
             await sendMessage({ body: newMessageText, author: name });
-            setNewMessageText("");
+            newMessageText = "";
           }
-          return (
-            <main>
-              <h1>Convex Chat</h1>
-              <p className="badge">
-                <span>{name}</span>
-              </p>
-              <ul>
-                {messages.map((message) => (
-                  <li key={message._id}>
-                    <span>{message.author}:</span>
-                    <span>{message.body}</span>
-                    <span>{new Date(message._creationTime).toLocaleTimeString()}</span>
-                  </li>
-                ))}
-              </ul>
-              <form onSubmit={handleSendMessage}>
-                <input
-                  value={newMessageText}
-                  onChange={(event) => setNewMessageText(event.target.value)}
-                  placeholder="Write a message…"
-                />
-                <button type="submit" disabled={!newMessageText}>
-                  Send
-                </button>
-              </form>
-            </main>
-          );
-        }
+        </script>
+
+        <main>
+          <h1>Convex Chat</h1>
+          <p class="badge">
+            <span>{name}</span>
+          </p>
+
+          {#if messagesQuery.isLoading}
+            <p>Loading messages...</p>
+          {:else if messagesQuery.error}
+            <p>Error loading messages: {messagesQuery.error}</p>
+          {:else}
+            <ul>
+              {#each messagesQuery.data as message (message._id)}
+                <li>
+                  <span>{message.author}:</span>
+                  <span>{message.body}</span>
+                  <span>{new Date(message._creationTime).toLocaleTimeString()}</span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+
+          <form onsubmit={handleSendMessage}>
+            <input
+              bind:value={newMessageText}
+              placeholder="Write a message…"
+            />
+            <button type="submit" disabled={!newMessageText}>
+              Send
+            </button>
+          </form>
+        </main>
         \`\`\`
 
-        The \`useQuery()\` hook is live-updating! It causes the React component is it used in to rerender, so Convex is a
-        perfect fix for collaborative, live-updating websites.
+        The \`useQuery()\` function from convex-svelte returns a reactive query object with \`data\`, \`isLoading\`,
+        and \`error\` properties. The component automatically re-renders when the query data changes, making Convex
+        perfect for collaborative, live-updating websites.
 
-        NEVER use \`useQuery()\` or other \`use\` hooks conditionally. The following example is invalid:
+        IMPORTANT Svelte 5 Patterns:
 
-        \`\`\`tsx
-        const avatarUrl = profile?.avatarId ? useQuery(api.profiles.getAvatarUrl, { storageId: profile.avatarId }) : null;
-        \`\`\`
+        1. STATE MANAGEMENT - Use Svelte 5 runes for reactivity:
+           - \`$state()\` for reactive state
+           - \`$derived()\` for computed values
+           - \`$effect()\` for side effects
+           - \`$props()\` for component props
 
-        You should do this instead:
+        2. CONVEX QUERIES - Always check the query state:
+           \`\`\`svelte
+           {#if query.isLoading}
+             <p>Loading...</p>
+           {:else if query.error}
+             <p>Error: {query.error}</p>
+           {:else}
+             <!-- Use query.data here -->
+           {/if}
+           \`\`\`
 
-        \`\`\`tsx
-        const avatarUrl = useQuery(
-          api.profiles.getAvatarUrl,
-          profile?.avatarId ? { storageId: profile.avatarId } : "skip"
-        );
-        \`\`\`
+        3. CONDITIONAL LOGIC - Use Svelte's template directives:
+           - Use \`{#if condition}\` for conditionals
+           - Use \`{#each items as item (item.id)}\` for lists (always provide a key)
+           - Use \`{#await promise}\` for async operations
 
-        If you want to use a UI element, you MUST create it. DO NOT use external libraries like Shadcn/UI.
+        4. EVENT HANDLERS:
+           - Use lowercase event names: \`onclick\`, \`onsubmit\`, \`oninput\`
+           - Always use \`event.preventDefault()\` in form handlers
+
+        5. TWO-WAY BINDING:
+           - Use \`bind:value\` for form inputs
+           - Example: \`<input bind:value={text} />\`
+
+        6. COMPONENT PROPS:
+           \`\`\`svelte
+           <script lang="ts">
+             interface Props {
+               title: string;
+               count?: number;
+             }
+             let { title, count = 0 }: Props = $props();
+           </script>
+           \`\`\`
+
+        7. AUTHENTICATION WITH CLERK:
+           Use Clerk components for authentication. Clerk is already set up in the template.
+
+           \`\`\`svelte
+           <script lang="ts">
+             import { SignedIn, SignedOut, UserButton, SignInButton } from 'svelte-clerk';
+           </script>
+
+           <SignedIn let:user>
+             <p>Welcome {user.firstName}!</p>
+             <UserButton afterSignOutUrl="/" />
+           </SignedIn>
+
+           <SignedOut>
+             <SignInButton mode="modal">
+               <button>Sign In</button>
+             </SignInButton>
+           </SignedOut>
+           \`\`\`
+
+           Available Clerk components:
+           - \`<SignedIn>\` - Shows content only when user is signed in
+           - \`<SignedOut>\` - Shows content only when user is signed out
+           - \`<UserButton />\` - Pre-built user menu with profile and sign-out
+           - \`<SignInButton />\` - Sign-in button (supports modal or redirect)
+           - \`<SignUpButton />\` - Sign-up button (supports modal or redirect)
+           - \`<SignIn />\` - Full sign-in form component
+           - \`<SignUp />\` - Full sign-up form component
+
+           To access user data in Convex functions, use Clerk's JWT tokens with \`ctx.auth.getUserIdentity()\`.
+
+        8. DO NOT use external UI libraries like Shadcn. Create custom components instead.
+
+        9. DO NOT use \`sharp\` for image compression. Always use \`canvas\` for image compression.
+
+        10. Always make sure the functions you are calling are defined in the \`convex/\` directory
+            and use the \`api\` or \`internal\` object to call them.
+
+        11. Always make sure you are using the correct arguments for convex functions. If arguments
+            are not optional, make sure they are not null.
+
+        12. NEVER import from 'svelte/store' - use Svelte 5 runes instead ($state, $derived, etc).
 
         When writing a UI component and you want to use a Convex function, you MUST import the \`api\` object. For example:
 
-        \`\`\`tsx
-        import { api } from "../convex/_generated/api";
+        \`\`\`svelte
+        import { api } from "$convex/_generated/api";
         \`\`\`
 
         You can use the \`api\` object to call any public Convex function.
-
-        Do not use \`sharp\` for image compression, always use \`canvas\` for image compression.
-
-        Always make sure your UIs work well with anonymous users.
-
-        Always make sure the functions you are calling are defined in the \`convex/\` directory and use the \`api\` or \`internal\` object to call them.
-        
-        Always make sure you are using the correct arguments for convex functions. If arguments are not optional, make sure they are not null.
       </client_guidelines>
     </convex_guidelines>
   </solution_constraints>
@@ -183,10 +238,10 @@ function templateInfo() {
     the current working directory. Its dependencies are specified in the 'package.json' file and already
     installed in the 'node_modules' directory. You MUST use this template. This template uses the following
     technologies:
-    - Vite + React for the frontend
+    - SvelteKit + Svelte 5 for the full-stack framework
     - TailwindCSS for styling
-    - Convex for the database, functions, scheduling, HTTP handlers, and search.
-    - Convex Auth for authentication.
+    - Convex for the database, functions, scheduling, HTTP handlers, and search
+    - Clerk for authentication
 
     Here are some important files within the template:
 
@@ -194,48 +249,37 @@ function templateInfo() {
       The 'convex/' directory contains the code deployed to the Convex backend.
     </directory>
 
-    <file path="convex/auth.config.ts">
-      The 'auth.config.ts' file links Convex Auth to the Convex deployment.
-      IMPORTANT: Do NOT modify the \`convex/auth.config.ts\` file under any circumstances.
-    </file>
-
-    <file path="convex/auth.ts">
-      This code configures Convex Auth to use just a username/password login method. Do NOT modify this
-      file. If the user asks to support other login methods, tell them that this isn't currently possible
-      within Chef. They can download the code and do it themselves.
-      IMPORTANT: Do NOT modify the \`convex/auth.ts\`, \`src/SignInForm.tsx\`, or \`src/SignOutButton.tsx\` files under any circumstances. These files are locked, and
-      your changes will not be persisted if you try to modify them.
-    </file>
-
-    <file path="convex/http.ts">
-      This file contains the HTTP handlers for the Convex backend. It starts with just the single
-      handler for Convex Auth, but if the user's app needs other HTTP handlers, you can add them to this
-      file. DO NOT modify the \`convex/http.ts\` file under any circumstances unless explicitly instructed to do so.
-      DO NOT modify the \`convex/http.ts\` for file storage. Use an action instead.
-    </file>
-
     <file path="convex/schema.ts">
-      This file contains the schema for the Convex backend. It starts with just 'authTables' for setting
-      up authentication. ONLY modify the 'applicationTables' object in this file: Do NOT modify the
-      'authTables' object. Always include \`...authTables\` in the \`defineSchema\` call when modifying
-      this file. The \`authTables\` object is imported with \`import { authTables } from "@convex-dev/auth/server";\`.
+      This file contains the schema for the Convex backend. You can add new tables here for your
+      application's data. Use \`defineTable\` and \`defineSchema\` from "convex/server".
     </file>
 
-    <file path="src/App.tsx">
-      This is the main React component for the app. It starts with a simple login form and a button to add a
-      random number to a list. It uses "src/SignInForm.tsx" and "src/SignOutButton.tsx" for the login and
-      logout functionality. Add new React components to their own files in the 'src' directory to avoid
-      cluttering the main file.
+    <file path="src/routes/+layout.svelte">
+      This is the root layout component that wraps all pages. It sets up the Convex client and Clerk
+      authentication provider. Do NOT modify this file under any circumstances.
     </file>
 
-    <file path="src/main.tsx">
-      This file is the entry point for the app and sets up the 'ConvexAuthProvider'.
-
-      IMPORTANT: Do NOT modify the \`src/main.tsx\` file under any circumstances.
+    <file path="src/routes/+page.svelte">
+      This is the main page component for the app. It demonstrates Clerk authentication with SignedIn/SignedOut
+      components. Add new Svelte components to their own files in the 'src/lib/components/' directory.
     </file>
 
-    <file path="index.html">
-      This file is the entry point for Vite and includes the <head> and <body> tags.
+    <file path="src/lib/components/SignInForm.svelte">
+      This component renders the Clerk sign-in UI.
+      IMPORTANT: Do NOT modify this file under any circumstances. It is locked.
+    </file>
+
+    <file path="src/lib/components/SignOutButton.svelte">
+      This component renders the Clerk user button with sign-out functionality.
+      IMPORTANT: Do NOT modify this file under any circumstances. It is locked.
+    </file>
+
+    <file path="src/app.html">
+      This file is the HTML template for SvelteKit and includes the <head> and <body> tags.
+    </file>
+
+    <file path="svelte.config.js">
+      This is the SvelteKit configuration file. Do NOT modify unless you need advanced configuration.
     </file>
   </template_info>
   `;

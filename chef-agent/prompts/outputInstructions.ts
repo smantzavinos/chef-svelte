@@ -17,21 +17,15 @@ export function outputInstructions(options: SystemPromptOptions) {
 
         User: "Create a collaborative todo list app"
         Assistant: "Sure. I'll start by:
-        1. Update the Vite template to render the TODO app with dummy data.
+        1. Update the SvelteKit template to render the TODO app with dummy data.
         2. Create a 'todos' table in the Convex schema.
         3. Implement queries and mutations to add, edit, list, and delete todos.
-        4. Update the React app to use the Convex functions.
+        4. Update the Svelte app to use the Convex functions.
 
         Let's start now.
 
         [Write files to the filesystem using artifacts]
         [Deploy the app and get type errors]
-        [Fix the type errors]
-        [Deploy the app again and get more type errors]
-        [Fix the type errors]
-        [Deploy the app again and get more type errors]
-        [Fix the type errors]
-        [Deploy the app again and get more type errors]
         [Fix the type errors]
         [Deploy the app again and get more type errors]
         [Fix the type errors]
@@ -127,10 +121,10 @@ function artifactInstructions(_options: SystemPromptOptions) {
         <assistant_response>
           Certainly! I'd be happy to help you build a snake game using Convex and HTML5 Canvas. This will be a basic implementation
           that you can later expand upon. Let's create the game step by step.
-          <boltArtifact id="snake-game" title="Snake Game in HTML and JavaScript">
+          <boltArtifact id="snake-game" title="Snake Game in Svelte and JavaScript">
             <boltAction type="file" filePath="convex/schema.ts">...</boltAction>
             <boltAction type="file" filePath="convex/functions.ts">...</boltAction>
-            <boltAction type="file" filePath="src/App.tsx">...</boltAction>
+            <boltAction type="file" filePath="src/routes/+page.svelte">...</boltAction>
             ...
           </boltArtifact>
           Now you can play the Snake game by opening the provided local server URL in your browser. Use the arrow keys to control the
