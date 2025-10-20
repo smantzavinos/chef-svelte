@@ -41,14 +41,29 @@ nix develop --command pnpm install
 
 Once inside the development shell:
 
+### Option 1: Easy Startup Script
+
 ```bash
-# Install dependencies
+# Install dependencies (one-time)
 pnpm i
 
-# Start the development server
+# Start both frontend and backend with one command
+./start-dev.sh
+
+# Visit the application
+# http://127.0.0.1:5173
+```
+
+### Option 2: Manual Startup
+
+```bash
+# Install dependencies (one-time)
+pnpm i
+
+# Start the development server (terminal 1)
 pnpm run dev
 
-# In another terminal, start the Convex backend
+# In another terminal, start the Convex backend (terminal 2)
 npx convex dev
 
 # Visit the application
@@ -78,7 +93,7 @@ This is a pnpm workspace with the following packages:
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and fill in your values:
+The project includes a pre-configured `.env.local` for development. For production or custom setups, copy `.env.example` to `.env.local` and fill in your values:
 
 ```bash
 cp .env.example .env.local
@@ -87,9 +102,11 @@ cp .env.example .env.local
 Key variables:
 
 - `CONVEX_DEPLOYMENT` - Your Convex project URL
-- `VITE_CONVEX_URL` - Frontend Convex URL
+- `VITE_CONVEX_URL` - Frontend Convex URL (defaults to local dev server)
 - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk authentication (for template)
 - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` - AI provider keys
+
+**Note**: The current `.env.local` is configured for local development with Convex running on `http://127.0.0.1:3210`.
 
 ## Building
 
