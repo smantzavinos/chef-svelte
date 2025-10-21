@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "svelte5": {
+      "type": "local",
+      "command": ["node", "/home/spiros/code/chef-svelte/svelte5-mcp/dist/index.js"],
+      "enabled": true
+    }
+  }
+}

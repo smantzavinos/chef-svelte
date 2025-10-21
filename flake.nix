@@ -10,30 +10,30 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        
+
         # Node.js version from .nvmrc
-        nodejs = pkgs.nodejs_20;
-        
+        nodejs = pkgs.nodejs_22;
+
         # pnpm package manager
         pnpm = pkgs.pnpm;
-        
+
         # Development shell with all necessary tools
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
             # Core Node.js ecosystem
             nodejs
             pnpm
-            
+
             # Build and development tools
             typescript
             nodePackages.typescript-language-server
-            
+
             # Additional utilities
             git
             curl
             openssl
             pkg-config
-            
+
             # For native dependencies
             python3
             gnumake
@@ -48,16 +48,16 @@
             libwebp
             sqlite
           ];
-          
+
           # Environment variables
           shellHook = ''
             # Ensure pnpm is available
             export PATH="${pnpm}/bin:$PATH"
-            
+
             # Development server port (from DEVELOPMENT.md)
             export PORT=5173
             export HOST=127.0.0.1
-            
+
             echo "🍳 Chef Development Environment Ready!"
             echo "Node.js: $(node --version)"
             echo "pnpm: $(pnpm --version)"
@@ -76,7 +76,7 @@
             echo "  - template: SvelteKit template"
           '';
         };
-        
+
       in {
         # Development shell
         devShells.default = devShell;
