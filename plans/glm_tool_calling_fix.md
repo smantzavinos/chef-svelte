@@ -509,3 +509,111 @@ The ZAI-specific prompt implementation is **complete and validated**. The system
 **Status:** ✅ Ready for testing
 **Risk Level:** Low (isolated to ZAI provider, follows existing patterns)
 **Rollback:** Simple (set `usingZai: false` or remove from system.ts)
+
+---
+
+## Follow-Up Fix: Tool Name Confusion (2025-10-24)
+
+### Issue Discovered During Testing
+
+After initial implementation, GLM-4.6 attempted to call `boltArtifact` and `boltAction` as tools:
+
+```
+Error: Model tried to call unavailable tool 'boltArtifact id="call-log-app-schema" ...'
+```
+
+**Root Cause:** GLM-4.6 saw examples in the system prompt showing `<boltArtifact>` and `<boltAction>` tags and incorrectly interpreted them as function calls instead of XML-like output formatting tags.
+
+**How it should work:**
+
+- `<boltArtifact>` and `<boltAction>` are tags written in the model's TEXT response
+- Chef's message parser extracts these tags and converts them to file operations
+- The actual callable tools are: `deploy`, `view`, `edit`, `npmInstall`, `lookupDocs`, `addEnvironmentVariables`, `getConvexDeploymentName`
+
+### Fix Applied ✅
+
+**File:** `/chef-agent/prompts/zai.ts`
+
+Added explicit clarification at the beginning of the ZAI prompt:
+
+```typescript
+<available_tools>
+  CRITICAL: The ONLY tools available for function calls are:
+  - deploy
+  - view
+  - edit
+  - npmInstall
+  - lookupDocs
+  - addEnvironmentVariables
+  - getConvexDeploymentName
+
+  IMPORTANT: <boltArtifact> and <boltAction> are NOT tools. They are XML-like tags that you write
+  in your TEXT response to create files. DO NOT try to call them as functions.
+
+  Example of CORRECT usage (in your text response):
+  <boltArtifact id="todo-app" title="Todo App">
+    <boltAction type="file" filePath="src/App.tsx">
+      // your code here
+    </boltAction>
+  </boltArtifact>
+
+  Example of INCORRECT usage:
+  ❌ Calling boltArtifact as a tool (DO NOT DO THIS)
+  ❌ Calling boltAction as a tool (DO NOT DO THIS)
+</available_tools>
+```
+
+**Updated Structure:**
+
+- Moved tool list to top of prompt for immediate clarity
+- Explicitly listed all 7 available tools
+- Added clear negative examples showing what NOT to do
+- Restructured prompt with `<available_tools>` and `<tool_call_json_formatting>` sections
+
+### Validation ✅
+
+**TypeScript Compilation:** PASSED
+
+```bash
+pnpm run typecheck
+# No errors
+```
+
+### Updated Testing Checklist
+
+Now testing for:
+
+1. ✅ Proper JSON formatting (arrays, objects, etc.)
+2. ✅ Correct tool name usage (no invalid tool calls)
+3. ✅ Proper use of `<boltArtifact>` and `<boltAction>` in text responses (not as tool calls)
+4. Model can create files using artifacts
+5. Model can use actual tools correctly
+
+### Expected Behavior After Fix
+
+**Correct:**
+
+```
+Assistant: I'll create a todo app for you.
+
+<boltArtifact id="todo-app" title="Todo App">
+  <boltAction type="file" filePath="src/App.tsx">
+    // code here
+  </boltAction>
+</boltArtifact>
+
+[Then calls deploy tool as a function]
+```
+
+**Incorrect (what GLM-4.6 was doing):**
+
+```
+Assistant: [Tries to call tool named "boltArtifact"]
+❌ Error: Model tried to call unavailable tool 'boltArtifact'
+```
+
+### Status
+
+**Implementation:** ✅ Complete
+**Validation:** ✅ TypeScript passes
+**Ready for:** Manual testing with actual GLM-4.6 requests
