@@ -23,6 +23,7 @@ export interface SystemPromptOptions {
   openaiProxyEnabled: boolean;
   usingOpenAi: boolean;
   usingGoogle: boolean;
+  usingZai: boolean;
   resendProxyEnabled: boolean;
   enableResend: boolean;
 }

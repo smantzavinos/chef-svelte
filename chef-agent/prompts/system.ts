@@ -8,6 +8,7 @@ import { outputInstructions } from './outputInstructions.js';
 import { openaiProxyGuidelines } from './openaiProxyGuidelines.js';
 import { openAi } from './openAi.js';
 import { google } from './google.js';
+import { zai } from './zai.js';
 import { resendProxyGuidelines } from './resendProxyGuidelines.js';
 
 // This is the very first part of the system prompt that tells the model what
@@ -30,6 +31,7 @@ export function generalSystemPrompt(options: SystemPromptOptions) {
   const result = stripIndents`${GENERAL_SYSTEM_PROMPT_PRELUDE}
   ${openAi(options)}
   ${google(options)}
+  ${zai(options)}
   ${solutionConstraints(options)}
   ${formattingInstructions(options)}
   ${exampleDataInstructions(options)}
@@ -39,6 +41,7 @@ export function generalSystemPrompt(options: SystemPromptOptions) {
   ${outputInstructions(options)}
   ${openAi(options)}
   ${google(options)}
+  ${zai(options)}
   `;
   return result;
 }

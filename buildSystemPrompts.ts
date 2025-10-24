@@ -12,6 +12,7 @@ const defaultOptions: SystemPromptOptions = {
   openaiProxyEnabled: true,
   usingOpenAi: true,
   usingGoogle: true,
+  usingZai: true,
   resendProxyEnabled: true,
   enableResend: true,
 };
