@@ -195,7 +195,10 @@ export const Chat = memo(
 
         // Map models to their respective providers
         const MODEL_TO_PROVIDER_MAP: {
-          [K in ModelSelection]: { providerName: ModelProvider; apiKeyField: 'value' | 'openai' | 'xai' | 'google' };
+          [K in ModelSelection]: {
+            providerName: ModelProvider;
+            apiKeyField: 'value' | 'openai' | 'xai' | 'google' | 'zai';
+          };
         } = {
           auto: { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
@@ -206,6 +209,7 @@ export const Chat = memo(
           'gemini-2.5-pro': { providerName: 'google', apiKeyField: 'google' },
           'claude-3-5-haiku': { providerName: 'anthropic', apiKeyField: 'value' },
           'gpt-4.1-mini': { providerName: 'openai', apiKeyField: 'openai' },
+          'glm-4.6': { providerName: 'zai', apiKeyField: 'zai' },
         };
 
         // Get provider info for the current model
@@ -322,6 +326,9 @@ export const Chat = memo(
         } else if (modelSelection === 'gpt-5') {
           modelProvider = 'OpenAI';
           modelChoice = 'gpt-5';
+        } else if (modelSelection === 'glm-4.6') {
+          modelProvider = 'ZAI';
+          modelChoice = 'glm-4.6';
         } else {
           const _exhaustiveCheck: never = modelSelection;
           throw new Error(`Unknown model: ${_exhaustiveCheck}`);

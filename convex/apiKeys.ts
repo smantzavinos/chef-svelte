@@ -161,6 +161,32 @@ export const deleteGoogleApiKeyForCurrentMember = mutation({
   },
 });
 
+export const deleteZaiApiKeyForCurrentMember = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({ code: "NotAuthorized", message: "Unauthorized" });
+    }
+
+    const existingMember = await getMemberByConvexMemberIdQuery(ctx, identity).first();
+
+    if (!existingMember) {
+      throw new ConvexError({ code: "NotAuthorized", message: "Unauthorized" });
+    }
+    if (!existingMember.apiKey) {
+      return;
+    }
+    await ctx.db.patch(existingMember._id, {
+      apiKey: {
+        ...existingMember.apiKey,
+        zai: undefined,
+      },
+    });
+  },
+});
+
 export const validateAnthropicApiKey = action({
   args: {
     apiKey: v.string(),
@@ -247,6 +273,36 @@ export const validateXaiApiKey = action({
       },
     });
     if (response.status === 400) {
+      return false;
+    }
+    return true;
+  },
+});
+
+export const validateZaiApiKey = action({
+  args: {
+    apiKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({ code: "NotAuthorized", message: "Unauthorized" });
+    }
+
+    const response = await fetch("https://api.z.ai/api/paas/v4/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${args.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "glm-4.6",
+        messages: [{ role: "user", content: "test" }],
+        max_tokens: 1,
+      }),
+    });
+
+    if (response.status === 401) {
       return false;
     }
     return true;

@@ -39,6 +39,7 @@ export function MissingApiKey({ provider, requireKey, resetDisableChatMessage }:
         openai: apiKey?.openai || undefined,
         xai: apiKey?.xai || undefined,
         google: apiKey?.google || undefined,
+        zai: apiKey?.zai || undefined,
       };
 
       switch (provider) {
@@ -53,6 +54,9 @@ export function MissingApiKey({ provider, requireKey, resetDisableChatMessage }:
           break;
         case 'xai':
           apiKeyMutation.xai = newKeyValue.trim();
+          break;
+        case 'zai':
+          apiKeyMutation.zai = newKeyValue.trim();
           break;
         case 'auto':
           if (useGeminiAuto) {
@@ -100,6 +104,7 @@ export function MissingApiKey({ provider, requireKey, resetDisableChatMessage }:
           openai: apiKey?.openai,
           xai: apiKey?.xai,
           google: apiKey?.google,
+          zai: apiKey?.zai,
         },
       });
 

@@ -20,6 +20,7 @@ export function usageFromGeneration(generation: {
     googleThoughtsTokenCount: Number(generation.providerMetadata?.google?.thoughtsTokenCount ?? 0),
     bedrockCacheWriteInputTokens: Number(bedrockUsage?.cacheWriteInputTokens ?? 0),
     bedrockCacheReadInputTokens: Number(bedrockUsage?.cacheReadInputTokens ?? 0),
+    zaiCachedPromptTokens: Number(generation.providerMetadata?.zai?.cachedPromptTokens ?? 0),
   };
 }
 
@@ -36,6 +37,7 @@ export function initializeUsage(): Usage {
     googleThoughtsTokenCount: 0,
     bedrockCacheWriteInputTokens: 0,
     bedrockCacheReadInputTokens: 0,
+    zaiCachedPromptTokens: 0,
   };
 }
 
@@ -98,6 +100,7 @@ function addUsage(totalUsage: Usage, payload: UsageAnnotation) {
   totalUsage.googleCachedContentTokenCount += payload.providerMetadata?.google?.cachedContentTokenCount ?? 0;
   totalUsage.bedrockCacheWriteInputTokens += payload.providerMetadata?.bedrock?.usage?.cacheWriteInputTokens ?? 0;
   totalUsage.bedrockCacheReadInputTokens += payload.providerMetadata?.bedrock?.usage?.cacheReadInputTokens ?? 0;
+  totalUsage.zaiCachedPromptTokens += payload.providerMetadata?.zai?.cachedPromptTokens ?? 0;
 }
 
 export type ChefTokenBreakdown = {

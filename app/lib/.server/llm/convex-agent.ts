@@ -420,6 +420,10 @@ function buildUsageRecord(usage: Usage): UsageRecord {
         usageRecord.promptTokens += usage.bedrockCacheReadInputTokens;
         break;
       }
+      case 'zaiCachedPromptTokens': {
+        usageRecord.cachedPromptTokens += usage.zaiCachedPromptTokens;
+        break;
+      }
       case 'toolCallId':
       case 'providerMetadata':
       case 'totalTokens': {

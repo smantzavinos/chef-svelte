@@ -43,6 +43,11 @@ export const usageAnnotationValidator = z.object({
           }),
         })
         .optional(),
+      zai: z
+        .object({
+          cachedPromptTokens: z.number(),
+        })
+        .optional(),
     })
     .optional(),
 });
@@ -58,9 +63,10 @@ export type Usage = UsageAnnotation & {
   googleThoughtsTokenCount: number;
   bedrockCacheWriteInputTokens: number;
   bedrockCacheReadInputTokens: number;
+  zaiCachedPromptTokens: number;
 };
 
-const providerValidator = z.enum(['Anthropic', 'Bedrock', 'OpenAI', 'XAI', 'Google', 'Unknown']);
+const providerValidator = z.enum(['Anthropic', 'Bedrock', 'OpenAI', 'XAI', 'Google', 'ZAI', 'Unknown']);
 export type ProviderType = z.infer<typeof providerValidator>;
 
 export const annotationValidator = z.discriminatedUnion('type', [

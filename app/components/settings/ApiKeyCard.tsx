@@ -26,6 +26,7 @@ export function ApiKeyCard() {
           openai: apiKey?.openai,
           xai: apiKey?.xai,
           google: apiKey?.google,
+          zai: apiKey?.zai,
         },
       });
       toast.success('Preference updated.', { id: value ? 'always' : 'quotaExhausted' });
@@ -35,7 +36,7 @@ export function ApiKeyCard() {
     }
   };
 
-  const hasAnyKey = apiKey && (apiKey.value || apiKey.openai || apiKey.xai || apiKey.google);
+  const hasAnyKey = apiKey && (apiKey.value || apiKey.openai || apiKey.xai || apiKey.google || apiKey.zai);
 
   const validateAnthropicApiKey = async (apiKey: string) => {
     return await convex.action(api.apiKeys.validateAnthropicApiKey, {
@@ -57,6 +58,12 @@ export function ApiKeyCard() {
 
   const validateXaiApiKey = async (apiKey: string) => {
     return await convex.action(api.apiKeys.validateXaiApiKey, {
+      apiKey,
+    });
+  };
+
+  const validateZaiApiKey = async (apiKey: string) => {
+    return await convex.action(api.apiKeys.validateZaiApiKey, {
       apiKey,
     });
   };
@@ -150,13 +157,42 @@ export function ApiKeyCard() {
             value={apiKey?.xai || ''}
             onValidate={validateXaiApiKey}
           />
+
+          <ApiKeyItem
+            label="z.ai API key"
+            description={
+              <>
+                <a
+                  href="https://z.ai/subscribe"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-content-link hover:underline"
+                >
+                  Get GLM Coding Plan ($3/month)
+                </a>
+                {' · '}
+                <a
+                  href="https://z.ai/manage-apikey/apikey-list"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-content-link hover:underline"
+                >
+                  Manage API keys
+                </a>
+              </>
+            }
+            isLoading={apiKey === undefined}
+            keyType="zai"
+            value={apiKey?.zai || ''}
+            onValidate={validateZaiApiKey}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-type KeyType = 'anthropic' | 'google' | 'openai' | 'xai';
+type KeyType = 'anthropic' | 'google' | 'openai' | 'xai' | 'zai';
 
 function ApiKeyItem({
   label,
@@ -241,6 +277,10 @@ function ApiKeyItem({
           await convex.mutation(api.apiKeys.deleteXaiApiKeyForCurrentMember);
           toast.success('xAI API key removed', { id: 'xai-removed' });
           break;
+        case 'zai':
+          await convex.mutation(api.apiKeys.deleteZaiApiKeyForCurrentMember);
+          toast.success('z.ai API key removed', { id: 'zai-removed' });
+          break;
       }
     } catch (error) {
       captureException(error);
@@ -265,6 +305,7 @@ function ApiKeyItem({
         openai: apiKey?.openai || undefined,
         xai: apiKey?.xai || undefined,
         google: apiKey?.google || undefined,
+        zai: apiKey?.zai || undefined,
       };
 
       switch (keyType) {
@@ -279,6 +320,9 @@ function ApiKeyItem({
           break;
         case 'xai':
           apiKeyMutation.xai = cleanApiKey(newKeyValue);
+          break;
+        case 'zai':
+          apiKeyMutation.zai = cleanApiKey(newKeyValue);
           break;
       }
 

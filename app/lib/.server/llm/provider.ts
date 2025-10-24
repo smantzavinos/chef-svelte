@@ -27,6 +27,9 @@ type Provider = {
     openai?: {
       reasoningEffort?: string;
     };
+    zai?: {
+      thinking?: { type: 'enabled' };
+    };
   };
 };
 
@@ -53,6 +56,8 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
       return getEnv('XAI_MODEL') || 'grok-3-mini';
     case 'Google':
       return getEnv('GOOGLE_MODEL') || 'gemini-2.5-pro';
+    case 'ZAI':
+      return getEnv('ZAI_MODEL') || 'glm-4.6';
     default: {
       const _exhaustiveCheck: never = provider;
       throw new Error(`Unknown provider: ${_exhaustiveCheck}`);
@@ -215,6 +220,25 @@ export function getProvider(
       provider = {
         model: anthropic(model),
         maxTokens: anthropicMaxTokens(modelChoice),
+      };
+      break;
+    }
+    case 'ZAI': {
+      model = modelForProvider(modelProvider, modelChoice);
+      const zai = createOpenAI({
+        apiKey: userApiKey || getEnv('ZAI_API_KEY'),
+        baseURL: 'https://api.z.ai/api/paas/v4/',
+        fetch: userApiKey ? userKeyApiFetch('ZAI') : fetch,
+        compatibility: 'strict',
+      });
+      provider = {
+        model: zai(model),
+        maxTokens: 128000,
+        options: {
+          zai: {
+            thinking: { type: 'enabled' },
+          },
+        },
       };
       break;
     }

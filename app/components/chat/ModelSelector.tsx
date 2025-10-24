@@ -10,7 +10,7 @@ import type { Doc } from '@convex/_generated/dataModel';
 import { captureMessage } from '@sentry/remix';
 import { useLaunchDarkly } from '~/lib/hooks/useLaunchDarkly';
 
-export type ModelProvider = 'openai' | 'google' | 'xai' | 'anthropic' | 'auto';
+export type ModelProvider = 'openai' | 'google' | 'xai' | 'anthropic' | 'zai' | 'auto';
 
 export function displayModelProviderName(provider: ModelProvider) {
   switch (provider) {
@@ -22,6 +22,8 @@ export function displayModelProviderName(provider: ModelProvider) {
       return 'xAI';
     case 'anthropic':
       return 'Anthropic';
+    case 'zai':
+      return 'z.ai';
     case 'auto':
       return 'Anthropic';
     default: {
@@ -46,6 +48,7 @@ const providerToIcon: Record<string, React.ReactNode> = {
   openai: svgIcon('/icons/openai.svg'),
   anthropic: svgIcon('/icons/claude.svg'),
   google: svgIcon('/icons/gemini.svg'),
+  zai: svgIcon('/icons/zai.svg'),
   xai: (
     <svg width="16" height="16" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
@@ -113,6 +116,11 @@ export const models: Partial<
   'gpt-4.1-mini': {
     name: 'GPT-4.1 Mini',
     provider: 'openai',
+    requireKey: true,
+  },
+  'glm-4.6': {
+    name: 'GLM-4.6',
+    provider: 'zai',
     requireKey: true,
   },
 } as const;
@@ -209,6 +217,9 @@ const keyForProvider = (apiKeys: Doc<'convexMembers'>['apiKey'], provider: Model
     } else {
       return apiKeys?.value;
     }
+  }
+  if (provider === 'zai') {
+    return apiKeys?.zai;
   }
   return apiKeys?.[provider];
 };
