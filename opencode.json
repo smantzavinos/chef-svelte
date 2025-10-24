@@ -5,6 +5,18 @@
       "type": "local",
       "command": ["node", "/home/spiros/code/chef-svelte/svelte5-mcp/dist/index.js"],
       "enabled": true
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--executablePath=/nix/store/0rmxq6cn9kxpz9raqmrs1z25jw2wiz7j-chromium-141.0.7390.107/bin/chromium",
+        "--headless=true",
+        "--isolated=true"
+      ],
+      "enabled": true
     }
   }
 }

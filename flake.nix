@@ -28,6 +28,9 @@
             typescript
             nodePackages.typescript-language-server
 
+            # Browser for chrome-devtools-mcp
+            chromium
+
             # Additional utilities
             git
             curl

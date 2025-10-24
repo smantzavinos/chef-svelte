@@ -55,3 +55,22 @@ Example prompts:
 - "use svelte5 to search for $state examples"
 - "use svelte5 to audit this component for Svelte 5 best practices"
 - "use svelte5 to find snippet patterns"
+
+### Chrome DevTools MCP Server
+
+For browser testing, performance analysis, and debugging:
+
+- **Performance analysis**: Record traces and get actionable insights
+- **Screenshots**: Capture page visuals at specific states
+- **Network inspection**: Analyze requests/responses, check headers
+- **Console logs**: Access browser console messages and errors
+- **Automation**: Click, fill forms, drag, hover, navigate pages
+- **Debugging**: Execute scripts, take DOM snapshots, handle dialogs
+- **Emulation**: CPU throttling, network conditions, viewport sizing
+
+Example prompts:
+
+- "Check the performance of https://example.com"
+- "Take a screenshot of the homepage"
+- "Analyze network requests for the login flow"
+- "Click the submit button and verify the console for errors"
