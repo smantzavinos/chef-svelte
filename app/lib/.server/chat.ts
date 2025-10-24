@@ -62,7 +62,14 @@ export async function chatAction({ request }: ActionFunctionArgs) {
     modelProvider: ModelProvider;
     modelChoice: string | undefined;
     userApiKey:
-      | { preference: 'always' | 'quotaExhausted'; value?: string; openai?: string; xai?: string; google?: string }
+      | {
+          preference: 'always' | 'quotaExhausted';
+          value?: string;
+          openai?: string;
+          xai?: string;
+          google?: string;
+          zai?: string;
+        }
       | undefined;
     shouldDisableTools: boolean;
     recordRawPromptsForDebugging?: boolean;
@@ -134,6 +141,8 @@ export async function chatAction({ request }: ActionFunctionArgs) {
       userApiKey = body.userApiKey?.openai;
     } else if (body.modelProvider === 'XAI') {
       userApiKey = body.userApiKey?.xai;
+    } else if (body.modelProvider === 'ZAI') {
+      userApiKey = body.userApiKey?.zai;
     } else {
       userApiKey = body.userApiKey?.google;
     }
@@ -223,7 +232,14 @@ export async function chatAction({ request }: ActionFunctionArgs) {
 // Returns whether or not the user has an API key set for a given provider
 function hasApiKeySetForProvider(
   userApiKey:
-    | { preference: 'always' | 'quotaExhausted'; value?: string; openai?: string; xai?: string; google?: string }
+    | {
+        preference: 'always' | 'quotaExhausted';
+        value?: string;
+        openai?: string;
+        xai?: string;
+        google?: string;
+        zai?: string;
+      }
     | undefined,
   provider: ModelProvider,
 ) {
@@ -236,6 +252,8 @@ function hasApiKeySetForProvider(
       return userApiKey?.xai !== undefined;
     case 'Google':
       return userApiKey?.google !== undefined;
+    case 'ZAI':
+      return userApiKey?.zai !== undefined;
     default:
       return false;
   }
