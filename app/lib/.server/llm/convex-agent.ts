@@ -9,7 +9,9 @@ import {
   type Message,
   type ProviderMetadata,
   type StepResult,
+  type Tool,
 } from 'ai';
+import { z } from 'zod';
 import { ROLE_SYSTEM_PROMPT, generalSystemPrompt } from 'chef-agent/prompts/system';
 import { deployTool } from 'chef-agent/tools/deploy';
 import { viewTool } from 'chef-agent/tools/view';
@@ -38,6 +40,67 @@ import { getConvexDeploymentNameTool } from 'chef-agent/tools/getConvexDeploymen
 import type { PromptCharacterCounts } from 'chef-agent/ChatContextManager';
 
 type Messages = Message[];
+
+function fixZaiStringifiedJson(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  if (value === 'null') {
+    return null;
+  }
+
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  if (value.startsWith('[') && value.endsWith(']')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  if (value.startsWith('{') && value.endsWith('}')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  if (!isNaN(Number(value)) && value.trim() !== '') {
+    const num = Number(value);
+    if (Number.isFinite(num)) {
+      return num;
+    }
+  }
+
+  return value;
+}
+
+function createZaiToolWrapper<T extends z.ZodTypeAny>(tool: Tool<T, any>): Tool<any, any> {
+  return {
+    ...tool,
+    parameters: z.preprocess((args: any) => {
+      if (!args || typeof args !== 'object') {
+        return args;
+      }
+
+      const fixed: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(args)) {
+        fixed[key] = fixZaiStringifiedJson(value);
+      }
+
+      return fixed;
+    }, tool.parameters),
+  };
+}
 
 export async function convexAgent(args: {
   chatInitialId: string;
@@ -102,6 +165,15 @@ export async function convexAgent(args: {
   tools.addEnvironmentVariables = addEnvironmentVariablesTool();
   tools.view = viewTool;
   tools.edit = editTool;
+
+  if (modelProvider === 'ZAI') {
+    console.log('[ZAI] Applying tool parameter preprocessing to fix stringified JSON values');
+    tools.view = createZaiToolWrapper(viewTool);
+    tools.edit = createZaiToolWrapper(editTool);
+    if (tools.addEnvironmentVariables) {
+      tools.addEnvironmentVariables = createZaiToolWrapper(tools.addEnvironmentVariables);
+    }
+  }
 
   const messagesForDataStream: CoreMessage[] = [
     {

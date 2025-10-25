@@ -617,3 +617,422 @@ Assistant: [Tries to call tool named "boltArtifact"]
 **Implementation:** ✅ Complete
 **Validation:** ✅ TypeScript passes
 **Ready for:** Manual testing with actual GLM-4.6 requests
+
+---
+
+## Follow-Up Fix 2: Missing Required Parameters (2025-10-24)
+
+### Issue Discovered During Testing
+
+GLM-4.6 omitted the `view_range` parameter entirely when calling the `view` tool:
+
+```
+Error: Invalid arguments for tool view: Type validation failed:
+Value: {"path":"/home/project/convex/schema.ts"}
+Error: "view_range" is Required (expected array, received undefined)
+```
+
+**Root Cause:** The `view` tool schema has `view_range: z.array(z.number()).nullable()` which means:
+
+- The parameter is **required** (must be present in the JSON)
+- But can be set to `null` (to read the entire file)
+
+GLM-4.6 was omitting the parameter entirely instead of passing `null`.
+
+### Fix Applied ✅
+
+**File:** `/chef-agent/prompts/zai.ts`
+
+Added explicit guidance about required parameters and nullable values:
+
+1. **Updated JSON formatting rules:**
+
+   - Added: "ALL parameters in the schema MUST be included in your tool call, even if nullable"
+   - Added: "use null for nullable parameters you don't need"
+
+2. **Added view tool examples:**
+
+   ```typescript
+   ✅ CORRECT - view tool with line range:
+   {
+     "path": "/home/project/src/App.tsx",
+     "view_range": [1, 50]
+   }
+
+   ✅ CORRECT - view tool reading entire file (MUST include view_range as null):
+   {
+     "path": "/home/project/src/App.tsx",
+     "view_range": null
+   }
+   ```
+
+3. **Added incorrect example:**
+   ```typescript
+   ❌ INCORRECT - Omitting required parameter (DO NOT DO THIS):
+   {
+     "path": "/home/project/src/App.tsx"
+   }
+   (Missing view_range - must be included as null or [start, end])
+   ```
+
+### Key Insight
+
+This issue highlights a common misunderstanding: **nullable ≠ optional**
+
+- `nullable()` means the value can be `null`, but the field must be present
+- `optional()` means the field can be omitted entirely
+
+GLM-4.6 needs explicit examples showing both cases.
+
+### Validation ✅
+
+**TypeScript Compilation:** PASSED
+
+```bash
+pnpm run typecheck
+# No errors
+```
+
+### Expected Behavior After Fix
+
+**Correct:**
+
+```json
+{"path": "/home/project/src/App.tsx", "view_range": null}
+{"path": "/home/project/src/App.tsx", "view_range": [1, 50]}
+```
+
+**Incorrect (what GLM-4.6 was doing):**
+
+```json
+{ "path": "/home/project/src/App.tsx" }
+```
+
+### Status
+
+**Implementation:** ✅ Complete
+**Validation:** ✅ TypeScript passes
+**Ready for:** Manual testing with actual GLM-4.6 requests
+
+---
+
+## Follow-Up Fix 3: Stringified Null Values (2025-10-24)
+
+### Issue Discovered During Testing
+
+GLM-4.6 now includes the `view_range` parameter but passes it as the STRING `"null"` instead of the null VALUE:
+
+```
+Error: Invalid arguments for tool view: Type validation failed:
+Value: {"path":"/home/project/convex/schema.ts","view_range":"null"}
+Error: Expected array, received string (at path "view_range")
+```
+
+**Pattern of Issues:**
+1. First error: `"[1, 50]"` (array as string)
+2. Second error: missing `view_range` parameter
+3. Current error: `"null"` (null as string)
+
+**Root Cause:** GLM-4.6 is consistently wrapping JSON values in quotes, treating them as strings rather than native JSON types.
+
+### Fix Applied ✅
+
+**File:** `/chef-agent/prompts/zai.ts`
+
+Completely restructured the JSON formatting rules section with ultra-explicit guidance:
+
+#### 1. Added Conceptual Framework
+
+```typescript
+ULTRA CRITICAL - READ THIS CAREFULLY:
+
+When you write tool call parameters, you are writing RAW JSON, not a string representation of JSON.
+
+Think of it this way:
+- You are constructing a JavaScript object literal
+- NOT writing JSON inside a string
+- NOT serializing or stringifying values
+```
+
+#### 2. Expanded Each Rule with Side-by-Side Examples
+
+Every type now shows CORRECT vs WRONG with explicit explanations:
+
+```typescript
+2. Arrays - Write them as ACTUAL arrays:
+   ✅ CORRECT: [1, 50]           (raw array)
+   ❌ WRONG:   "[1, 50]"         (string containing array syntax)
+
+3. Null - Write it as the ACTUAL null keyword:
+   ✅ CORRECT: null              (raw null keyword)
+   ❌ WRONG:   "null"            (string containing the word null)
+```
+
+#### 3. Enhanced Incorrect Examples Section
+
+Added specific examples for EVERY type being stringified incorrectly:
+
+```typescript
+❌ INCORRECT - null as a string (DO NOT DO THIS):
+{
+  "view_range": "null"
+}
+(This passes the STRING "null", not the null VALUE. Remove the quotes!)
+
+❌ INCORRECT - Array as string (DO NOT DO THIS):
+{
+  "view_range": "[1, 50]"
+}
+(This passes the STRING "[1, 50]", not an ARRAY. Remove the quotes!)
+```
+
+#### 4. Enhanced Self-Correction Checklist
+
+Changed from vague rules to explicit questions for each parameter:
+
+```typescript
+3. For EACH parameter, ask yourself:
+   - Is this supposed to be an array? → Write [1, 2, 3] NOT "[1, 2, 3]"
+   - Is this supposed to be null? → Write null NOT "null"
+   - Is this supposed to be an object? → Write {key: value} NOT "{key: value}"
+   - Is this supposed to be a number? → Write 42 NOT "42"
+   - Is this supposed to be a boolean? → Write true NOT "true"
+   - Is this supposed to be a string? → Write "text" (this one DOES have quotes)
+```
+
+#### 5. Added Critical Reminder Box
+
+```typescript
+⚠️ CRITICAL REMINDER ⚠️
+
+DO NOT PUT QUOTES AROUND:
+- null (write: null, not "null")
+- arrays (write: [1, 2], not "[1, 2]")
+- objects (write: {a: 1}, not "{a: 1}")
+- numbers (write: 42, not "42")
+- booleans (write: true, not "true")
+
+ONLY PUT QUOTES AROUND:
+- strings (write: "hello", not hello)
+
+If you pass "null" instead of null, the tool will FAIL.
+If you pass "[1, 50]" instead of [1, 50], the tool will FAIL.
+
+This is the most common mistake - DO NOT make it!
+```
+
+### Validation ✅
+
+**TypeScript Compilation:** PASSED
+
+### Expected Behavior After Fix
+
+**Correct:**
+```json
+{"path": "/home/project/src/App.tsx", "view_range": null}
+{"path": "/home/project/src/App.tsx", "view_range": [1, 50]}
+```
+
+**Incorrect (what GLM-4.6 was doing):**
+```json
+{"path": "/home/project/src/App.tsx", "view_range": "null"}
+{"path": "/home/project/src/App.tsx", "view_range": "[1, 50]"}
+```
+
+### Analysis
+
+This represents the third iteration of fixes, each progressively more explicit:
+1. **Fix 1:** Added JSON formatting rules
+2. **Fix 2:** Added requirement to include all parameters
+3. **Fix 3:** Ultra-explicit guidance on quotes around values
+
+If this fix doesn't resolve the issue, it suggests GLM-4.6 may have a fundamental limitation in tool calling that requires post-processing rather than prompt engineering.
+
+### Status
+
+**Implementation:** ✅ Complete
+**Validation:** ✅ TypeScript passes
+**Ready for:** Manual testing with actual GLM-4.6 requests
+**Fallback Plan:** If this fails, implement post-processing to convert stringified values to proper JSON types
+
+---
+
+## Follow-Up Fix 4: Post-Processing for Stringified Values (2025-10-24)
+
+### Issue: Prompt Engineering Hit Its Limits
+
+After three iterations of increasingly explicit prompt engineering, GLM-4.6 still passes `"null"` instead of `null`. This indicates a fundamental model limitation that cannot be resolved with prompts alone.
+
+### Solution: Post-Processing Wrapper
+
+**Approach:** Intercept tool parameters from ZAI provider and automatically convert stringified JSON values to proper types before validation.
+
+**Location:** `/app/lib/.server/llm/convex-agent.ts`
+
+#### Implementation
+
+**1. JSON Value Fixer Function:**
+
+```typescript
+function fixZaiStringifiedJson(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  // Convert "null" → null
+  if (value === 'null') {
+    return null;
+  }
+
+  // Convert "true"/"false" → true/false
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+
+  // Convert "[1, 50]" → [1, 50]
+  if (value.startsWith('[') && value.endsWith(']')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  // Convert "{...}" → {...}
+  if (value.startsWith('{') && value.endsWith('}')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  // Convert "42" → 42
+  if (!isNaN(Number(value)) && value.trim() !== '') {
+    const num = Number(value);
+    if (Number.isFinite(num)) {
+      return num;
+    }
+  }
+
+  return value;
+}
+```
+
+**2. Tool Wrapper Function:**
+
+```typescript
+function createZaiToolWrapper<T extends z.ZodTypeAny>(tool: Tool<T, any>): Tool<any, any> {
+  return {
+    ...tool,
+    parameters: z.preprocess((args: any) => {
+      if (!args || typeof args !== 'object') {
+        return args;
+      }
+
+      const fixed: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(args)) {
+        fixed[key] = fixZaiStringifiedJson(value);
+      }
+
+      return fixed;
+    }, tool.parameters),
+  };
+}
+```
+
+**3. Apply Wrapper to ZAI Provider:**
+
+```typescript
+if (modelProvider === 'ZAI') {
+  console.log('[ZAI] Applying tool parameter preprocessing to fix stringified JSON values');
+  tools.view = createZaiToolWrapper(viewTool);
+  tools.edit = createZaiToolWrapper(editTool);
+  if (tools.addEnvironmentVariables) {
+    tools.addEnvironmentVariables = createZaiToolWrapper(tools.addEnvironmentVariables);
+  }
+}
+```
+
+### How It Works
+
+1. **Interception:** Zod's `z.preprocess()` intercepts parameters before validation
+2. **Conversion:** Each parameter value is checked and converted if it's a stringified JSON type
+3. **Safe Fallback:** If JSON parsing fails, the original value is preserved
+4. **Transparent:** Tools receive properly typed data and don't know preprocessing happened
+5. **ZAI-Only:** Only activates when `modelProvider === 'ZAI'`, no impact on other providers
+
+### What Gets Fixed
+
+| GLM-4.6 Output | Converted To | Type |
+|----------------|--------------|------|
+| `"null"` | `null` | null |
+| `"true"` | `true` | boolean |
+| `"false"` | `false` | boolean |
+| `"[1, 50]"` | `[1, 50]` | array |
+| `"42"` | `42` | number |
+| `"{\"key\": \"val\"}"` | `{key: "val"}` | object |
+| `"hello"` | `"hello"` | string (unchanged) |
+
+### Advantages
+
+1. **Non-invasive:** Only affects ZAI provider
+2. **No schema changes:** Original tool definitions remain unchanged
+3. **Centralized:** All fixes in one place
+4. **Maintainable:** Easy to add more conversions if needed
+5. **Safe:** Try-catch blocks prevent crashes
+6. **Transparent:** Existing code doesn't need modifications
+
+### Trade-offs
+
+**Pros:**
+- ✅ Unblocks GLM-4.6 usage immediately
+- ✅ Minimal code changes
+- ✅ Provider-specific, doesn't affect others
+- ✅ Easy to remove when z.ai improves tool calling
+
+**Cons:**
+- ⚠️ Workaround for model limitation (not ideal)
+- ⚠️ Could mask actual bugs if we pass wrong types
+- ⚠️ Adds slight processing overhead
+
+### Validation ✅
+
+**TypeScript Compilation:** PASSED
+```bash
+pnpm run typecheck
+# No errors
+```
+
+### Expected Behavior
+
+**Before:**
+```
+Error: Expected array, received string
+Value: {"path": "...", "view_range": "null"}
+```
+
+**After:**
+```
+✅ Tool call succeeds
+Preprocessed: {"path": "...", "view_range": null}
+```
+
+### Console Output
+
+When ZAI is used, you'll see:
+```
+[ZAI] Applying tool parameter preprocessing to fix stringified JSON values
+```
+
+### Status
+
+**Implementation:** ✅ Complete
+**Validation:** ✅ TypeScript passes
+**Ready for:** Testing with GLM-4.6
+
+### Future Considerations
+
+- Monitor if z.ai improves GLM-4.6 tool calling in future releases
+- Consider removing post-processing if model improves
+- Could add telemetry to track how often conversions occur
+- May need to extend to other tools (deploy, npmInstall, etc.) if they encounter issues
